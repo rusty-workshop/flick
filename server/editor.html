@@ -76,11 +76,21 @@ let key = "";
 let presets = [];
 let saveTimer = null;
 
-try {
-  const m = location.hash.match(/k=([^&]+)/);
-  if (m) { localStorage.setItem("flick-key", decodeURIComponent(m[1])); history.replaceState(null, "", location.pathname); }
-  key = localStorage.getItem("flick-key") || "";
-} catch (e) {}
+// Accepts a bare key, "#k=KEY", or the whole bookmark link pasted into the box.
+const bareKey = (s) => { const m = s.match(/k=([^&\s]+)/); return (m ? decodeURIComponent(m[1]) : s).trim(); };
+
+function keyFromHash() {
+  if (!/k=/.test(location.hash)) return false;
+  key = bareKey(location.hash);
+  try { localStorage.setItem("flick-key", key); } catch (e) {}
+  history.replaceState(null, "", location.pathname);
+  return true;
+}
+
+try { key = localStorage.getItem("flick-key") || ""; } catch (e) {}
+keyFromHash();
+// Adding #k=... to an already-open tab doesn't reload the page.
+window.addEventListener("hashchange", () => { if (keyFromHash()) { status(""); start(); } });
 
 function status(text, cls = "") {
   const s = $("status"); s.textContent = text; s.className = cls; s.hidden = !text;
@@ -112,7 +122,7 @@ async function start() {
 }
 
 $("keygo").onclick = () => {
-  key = $("keyin").value.trim();
+  key = bareKey($("keyin").value);
   try { localStorage.setItem("flick-key", key); } catch (e) {}
   status(""); start();
 };
