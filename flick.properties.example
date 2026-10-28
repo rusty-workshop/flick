@@ -1,0 +1,6 @@
+# Copy to flick.properties (gitignored). Baked into BuildConfig at build time.
+server.lan=http://192.168.1.158:8480
+# Optional Tailscale/Funnel address for syncing away from home (beaming itself works offline)
+server.funnel=
+# FLICK_KEY from server/flick.env
+server.key=REPLACE_ME

@@ -1,0 +1,10 @@
+*.iml
+.gradle/
+build/
+local.properties
+flick.properties
+server/flick.env
+.idea/
+*.apk
+.kotlin/
+__pycache__/

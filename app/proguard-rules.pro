@@ -1,0 +1,4 @@
+-keep class com.rusty.flick.** extends android.app.Service
+-keep class com.rusty.flick.** extends android.app.Activity
+-keep class com.rusty.flick.** extends android.nfc.cardemulation.HostApduService
+-dontwarn javax.annotation.**

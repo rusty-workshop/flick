@@ -1,0 +1,13 @@
+[Unit]
+Description=flick (preset editor + sync for the Flick watch app)
+After=network-online.target
+
+[Service]
+EnvironmentFile=%h/flick/flick.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 %h/flick/flick.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

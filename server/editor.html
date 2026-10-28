@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flick presets</title>
+<style>
+  :root {
+    --bg: #f6f4fb; --card: #fff; --ink: #1d1a26; --muted: #6f6a7d; --line: #e4e0ee;
+    --accent: #6c3be8; --accent-ink: #fff; --bad: #c0392b; --ok: #1e8e5a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #121018; --card: #1c1924; --ink: #eeeaf6; --muted: #9a94aa; --line: #2c2838;
+            --accent: #9c7bff; --accent-ink: #12101a; --bad: #ff7b6b; --ok: #5fd39a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.4 system-ui, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 20px 16px 80px; }
+  h1 { margin: 0; font-size: 26px; display: flex; align-items: center; gap: 8px; }
+  .sub { color: var(--muted); margin: 4px 0 20px; font-size: 14px; }
+  .add { display: flex; gap: 8px; margin-bottom: 18px; }
+  input, select, button { font: inherit; color: inherit; }
+  input, select { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .add input { flex: 1; }
+  button { border: 0; border-radius: 10px; padding: 10px 14px; cursor: pointer; background: var(--line); }
+  button.primary { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .list { display: flex; flex-direction: column; gap: 10px; }
+  .row { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px;
+         display: grid; grid-template-columns: 52px 1fr auto; gap: 8px; align-items: center; }
+  .row .emoji { text-align: center; font-size: 22px; padding: 6px 0; }
+  .row .fields { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .row .name { font-weight: 600; }
+  .row .line2 { display: flex; gap: 6px; }
+  .row .line2 input { flex: 1; font-size: 14px; }
+  .row .line2 select { font-size: 14px; padding: 8px; }
+  .row .tools { display: flex; flex-direction: column; gap: 4px; }
+  .row .tools button { padding: 4px 9px; background: transparent; color: var(--muted); font-size: 15px; }
+  .row .tools button:hover { background: var(--line); color: var(--ink); }
+  .row .tools .del:hover { color: var(--bad); }
+  .empty { color: var(--muted); text-align: center; padding: 30px 0; }
+  #status { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--card);
+            border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 13px; color: var(--muted); }
+  #status.ok { color: var(--ok); } #status.bad { color: var(--bad); }
+  .keybox { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .hint { color: var(--muted); font-size: 13px; margin-top: 22px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>⚡ Flick</h1>
+  <p class="sub">Presets for your watch. Changes save automatically; tap <b>Sync presets</b> on the watch to pull them.</p>
+
+  <div id="keygate" class="keybox" hidden>
+    <b>Enter your Flick key</b>
+    <span class="sub" style="margin:0">It's <code>FLICK_KEY</code> in <code>~/flick/flick.env</code>. This browser remembers it.</span>
+    <input id="keyin" type="password" autocomplete="off" placeholder="key">
+    <button class="primary" id="keygo">Unlock</button>
+  </div>
+
+  <div id="app" hidden>
+    <form class="add" id="addform">
+      <input id="addurl" placeholder="Paste a link (or any text) to add it" autocomplete="off">
+      <button class="primary">Add</button>
+    </form>
+    <div class="list" id="list"></div>
+    <p class="hint">Tip: links open on the phone you tap (YouTube links open the YouTube app). “Text” presets show up as a note instead.</p>
+  </div>
+</main>
+<div id="status" hidden></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let key = "";
+let presets = [];
+let saveTimer = null;
+
+try {
+  const m = location.hash.match(/k=([^&]+)/);
+  if (m) { localStorage.setItem("flick-key", decodeURIComponent(m[1])); history.replaceState(null, "", location.pathname); }
+  key = localStorage.getItem("flick-key") || "";
+} catch (e) {}
+
+function status(text, cls = "") {
+  const s = $("status"); s.textContent = text; s.className = cls; s.hidden = !text;
+}
+
+async function api(method, body) {
+  const r = await fetch("/api/presets", {
+    method, headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) { lock(); throw new Error("wrong key"); }
+  if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
+  return j;
+}
+
+function lock() {
+  try { localStorage.removeItem("flick-key"); } catch (e) {}
+  $("app").hidden = true; $("keygate").hidden = false; $("keyin").focus();
+}
+
+async function start() {
+  if (!key) return lock();
+  try {
+    presets = (await api("GET")).presets;
+    $("keygate").hidden = true; $("app").hidden = false;
+    render();
+  } catch (e) { status(e.message, "bad"); }
+}
+
+$("keygo").onclick = () => {
+  key = $("keyin").value.trim();
+  try { localStorage.setItem("flick-key", key); } catch (e) {}
+  status(""); start();
+};
+$("keyin").onkeydown = (e) => { if (e.key === "Enter") $("keygo").click(); };
+
+function guess(value) {
+  const v = value.trim();
+  const looksUrl = /^[a-z][a-z0-9+.-]*:/i.test(v) || /^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(v);
+  if (!looksUrl) return { kind: "text", name: v.slice(0, 24), emoji: "💬" };
+  let host = v;
+  try { host = new URL(/:/.test(v) ? v : "https://" + v).hostname.replace(/^www\./, ""); } catch (e) {}
+  if (/youtube\.com|youtu\.be/.test(host)) return { kind: "url", name: "YouTube video", emoji: "▶️" };
+  if (/spotify\.com/.test(host)) return { kind: "url", name: "Spotify", emoji: "🎧" };
+  if (/github\.(com|io)/.test(host)) return { kind: "url", name: host, emoji: "🐙" };
+  if (/^mailto:/i.test(v)) return { kind: "url", name: v.slice(7), emoji: "✉️" };
+  if (/^tel:/i.test(v)) return { kind: "url", name: v.slice(4), emoji: "📞" };
+  return { kind: "url", name: host, emoji: "🔗" };
+}
+
+$("addform").onsubmit = (e) => {
+  e.preventDefault();
+  const v = $("addurl").value.trim();
+  if (!v) return;
+  const g = guess(v);
+  presets.push({ id: Math.random().toString(16).slice(2, 10), value: v, ...g });
+  $("addurl").value = "";
+  render(); queueSave();
+  const names = document.querySelectorAll(".name");
+  const last = names[names.length - 1];
+  if (last) { last.focus(); last.select(); }
+};
+
+function el(tag, props = {}, kids = []) {
+  const n = Object.assign(document.createElement(tag), props);
+  kids.forEach((k) => n.append(k));
+  return n;
+}
+
+function render() {
+  const list = $("list");
+  list.replaceChildren();
+  if (!presets.length) { list.append(el("div", { className: "empty", textContent: "No presets yet. Paste a link above." })); return; }
+  presets.forEach((p, i) => {
+    const bind = (field) => (e) => { p[field] = e.target.value; queueSave(); };
+    const emoji = el("input", { className: "emoji", value: p.emoji || "", placeholder: "🔗", maxLength: 8, oninput: bind("emoji"), ariaLabel: "Emoji" });
+    const name = el("input", { className: "name", value: p.name, placeholder: "Name", oninput: bind("name"), ariaLabel: "Name" });
+    const value = el("input", { value: p.value, placeholder: p.kind === "text" ? "Text" : "https://…", oninput: bind("value"), ariaLabel: "Link or text" });
+    const kind = el("select", { onchange: (e) => { p.kind = e.target.value; render(); queueSave(); }, ariaLabel: "Type" },
+      [el("option", { value: "url", textContent: "Link" }), el("option", { value: "text", textContent: "Text" })]);
+    kind.value = p.kind;
+    const move = (d) => () => { const j = i + d; if (j < 0 || j >= presets.length) return; [presets[i], presets[j]] = [presets[j], presets[i]]; render(); queueSave(); };
+    const tools = el("div", { className: "tools" }, [
+      el("button", { textContent: "↑", title: "Move up", onclick: move(-1) }),
+      el("button", { className: "del", textContent: "✕", title: "Delete", onclick: () => { if (confirm(`Delete “${p.name}”?`)) { presets.splice(i, 1); render(); queueSave(); } } }),
+      el("button", { textContent: "↓", title: "Move down", onclick: move(1) }),
+    ]);
+    list.append(el("div", { className: "row" }, [emoji, el("div", { className: "fields" }, [name, el("div", { className: "line2" }, [value, kind])]), tools]));
+  });
+}
+
+function queueSave() {
+  status("Saving…");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      const saved = (await api("PUT", { presets })).presets;
+      // The server keeps order and skips empty rows: adopt its ids (and https:// fixes) for the rest,
+      // so the watch's active preset id stays stable across saves.
+      const filled = presets.filter((p) => p.value.trim());
+      filled.forEach((p, i) => { if (saved[i]) { p.id = saved[i].id; p.value = saved[i].value; } });
+      status("Saved ✓", "ok");
+      setTimeout(() => status(""), 1500);
+    } catch (e) { status("Not saved: " + e.message, "bad"); }
+  }, 600);
+}
+
+start();
+</script>
+</body>
+</html>
