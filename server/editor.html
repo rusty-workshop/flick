@@ -43,6 +43,11 @@
             border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 13px; color: var(--muted); }
   #status.ok { color: var(--ok); } #status.bad { color: var(--bad); }
   .keybox { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .notes-h { font-size: 17px; margin: 30px 0 10px; }
+  .notes-h span { color: var(--muted); font-weight: normal; font-size: 14px; }
+  .note { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; }
+  .note .meta { color: var(--muted); font-size: 12px; margin-bottom: 2px; }
+  .note .text { white-space: pre-wrap; overflow-wrap: anywhere; }
   .hint { color: var(--muted); font-size: 13px; margin-top: 22px; }
   [hidden] { display: none !important; }
 </style>
@@ -65,6 +70,8 @@
       <button class="primary">Add</button>
     </form>
     <div class="list" id="list"></div>
+    <h2 class="notes-h">Notes from people you flicked <span id="victims"></span></h2>
+    <div class="list" id="notes"><div class="empty">Loading…</div></div>
     <p class="hint">Tip: links open on the phone you tap (YouTube links open the YouTube app). “Text” presets show up as a note instead.</p>
   </div>
 </main>
@@ -118,7 +125,27 @@ async function start() {
     presets = (await api("GET")).presets;
     $("keygate").hidden = true; $("app").hidden = false;
     render();
+    loadNotes();
   } catch (e) { status(e.message, "bad"); }
+}
+
+async function loadNotes() {
+  const box = $("notes");
+  try {
+    const r = await fetch("/api/notes", { headers: { "Authorization": "Bearer " + key } });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
+    $("victims").textContent = j.victims ? `· ${j.victims} flicked so far` : "";
+    box.replaceChildren();
+    if (!j.notes.length) { box.append(el("div", { className: "empty", textContent: "No notes yet." })); return; }
+    j.notes.forEach((n) => {
+      const when = new Date(n.at * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+      box.append(el("div", { className: "note" }, [
+        el("div", { className: "meta", textContent: (n.n ? `victim #${n.n} · ` : "") + when }),
+        el("div", { className: "text", textContent: n.message }),
+      ]));
+    });
+  } catch (e) { box.replaceChildren(el("div", { className: "empty", textContent: "Couldn't load notes: " + e.message })); }
 }
 
 $("keygo").onclick = () => {

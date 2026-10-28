@@ -8,12 +8,15 @@ and one JSON endpoint the watch syncs from. Stdlib only.
   GET  /              editor page (asks for the key once, then remembers it)
   GET  /api/presets   {"presets": [...]}            Bearer FLICK_KEY
   PUT  /api/presets   replace the whole list        Bearer FLICK_KEY
+  GET  /api/notes     notes left on the "you've been flicked" page (read-only
+                      from the guestbook-api database)   Bearer FLICK_KEY
 """
 import hmac
 import json
 import os
 import re
 import secrets
+import sqlite3
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -26,6 +29,7 @@ HERE = Path(__file__).resolve().parent
 DATA = Path(os.environ.get("DATA_DIR", HERE / "data"))
 STORE = DATA / "presets.json"
 PAGE = (HERE / "editor.html").read_bytes()
+GUESTBOOK_DB = Path(os.environ.get("GUESTBOOK_DB", Path.home() / "latitude-guestbook/data/guestbook.db"))
 
 assert len(KEY) >= 32, "FLICK_KEY must be at least 32 characters"
 DATA.mkdir(parents=True, exist_ok=True)
@@ -53,6 +57,23 @@ def save(presets: list):
     tmp = STORE.with_suffix(".tmp")
     tmp.write_text(json.dumps({"presets": presets}, ensure_ascii=False, indent=1))
     tmp.replace(STORE)
+
+
+def flick_stats() -> dict:
+    """Victim count + notes from the flicked page. Opened read-only: guestbook-api owns this file."""
+    if not GUESTBOOK_DB.exists():
+        return {"victims": 0, "notes": []}
+    conn = sqlite3.connect(f"file:{GUESTBOOK_DB}?mode=ro", uri=True, timeout=3)
+    try:
+        has = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        if "flick_notes" not in has:
+            return {"victims": 0, "notes": []}
+        row = conn.execute("SELECT seq FROM sqlite_sequence WHERE name = 'flicks'").fetchone()
+        notes = [{"n": n, "message": m, "at": at} for n, m, at in
+                 conn.execute("SELECT n, message, created_at FROM flick_notes ORDER BY id DESC LIMIT 200")]
+        return {"victims": row[0] if row else 0, "notes": notes}
+    finally:
+        conn.close()
 
 
 def clean(raw) -> list:
@@ -114,6 +135,13 @@ class Handler(BaseHTTPRequestHandler):
             log(f"sync from {self.client_address[0]}")
             with lock:
                 return self.js(200, {"presets": load()})
+        if path == "/api/notes":
+            if not self.authed():
+                return
+            try:
+                return self.js(200, flick_stats())
+            except sqlite3.Error as e:
+                return self.js(503, {"error": f"guestbook db: {e}"})
         if path == "/health":
             return self.js(200, {"ok": True})
         self.js(404, {"error": "not found"})
