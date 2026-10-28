@@ -1,11 +1,17 @@
 package com.rusty.flick
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.nfc.NdefMessage
 import android.nfc.NdefRecord
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -68,7 +74,7 @@ object Store {
 
     suspend fun sync(ctx: Context) {
         load(ctx)
-        val result = withContext(Dispatchers.IO) { runCatching { fetch() } }
+        val result = withWifi(ctx) { wifi -> withContext(Dispatchers.IO) { runCatching { fetch(wifi) } } }
         result.onSuccess { (raw, list) ->
             val now = System.currentTimeMillis()
             // A preset deleted in the editor stops beaming rather than lingering as a ghost.
@@ -80,13 +86,44 @@ object Store {
         }
     }
 
+    /**
+     * Wear OS keeps Wi-Fi off while the phone is connected over Bluetooth, and the Bluetooth proxy
+     * can't reach LAN addresses. Asking for a Wi-Fi network brings the radio up for the sync;
+     * releasing it lets the watch drop back to Bluetooth. Falls back to the default network.
+     */
+    private suspend fun <T> withWifi(ctx: Context, block: suspend (Network?) -> T): T {
+        val cm = ctx.getSystemService(ConnectivityManager::class.java)
+        val active = cm.getNetworkCapabilities(cm.activeNetwork)
+        if (active?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) return block(cm.activeNetwork)
+        var callback: ConnectivityManager.NetworkCallback? = null
+        try {
+            val wifi = withTimeoutOrNull(10_000) {
+                suspendCancellableCoroutine { cont ->
+                    val cb = object : ConnectivityManager.NetworkCallback() {
+                        override fun onAvailable(network: Network) { if (cont.isActive) cont.resume(network) { _, _, _ -> } }
+                    }
+                    callback = cb
+                    val req = NetworkRequest.Builder()
+                        .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                        .build()
+                    cm.requestNetwork(req, cb)
+                }
+            }
+            return block(wifi)
+        } finally {
+            callback?.let { runCatching { cm.unregisterNetworkCallback(it) } }
+        }
+    }
+
     /** LAN first with a short timeout, then the optional remote address. */
-    private fun fetch(): Pair<String, List<Preset>> {
+    private fun fetch(wifi: Network?): Pair<String, List<Preset>> {
         val bases = listOf(BuildConfig.SERVER_LAN to 2000, BuildConfig.SERVER_FUNNEL to 7000).filter { it.first.isNotBlank() }
         if (bases.isEmpty()) throw IllegalStateException("No server configured")
         var last: Exception = IllegalStateException("Can't reach the Latitude")
         for ((base, connectMs) in bases) {
-            val conn = URL("$base/api/presets").openConnection() as HttpURLConnection
+            val url = URL("$base/api/presets")
+            val conn = (wifi?.openConnection(url) ?: url.openConnection()) as HttpURLConnection
             try {
                 conn.connectTimeout = connectMs
                 conn.readTimeout = 8000
@@ -99,7 +136,7 @@ object Store {
                 last = IllegalStateException(if (code == 401) "Wrong key" else "HTTP $code")
                 if (code == 401) break
             } catch (e: Exception) {
-                last = IllegalStateException("Can't reach the Latitude")
+                last = IllegalStateException(if (wifi == null) "No Wi-Fi, can't reach the Latitude" else "Can't reach the Latitude")
             } finally {
                 conn.disconnect()
             }
