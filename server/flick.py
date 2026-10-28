@@ -32,7 +32,7 @@ DATA.mkdir(parents=True, exist_ok=True)
 lock = threading.Lock()
 
 SEED = [
-    {"id": "site", "name": "My website", "emoji": "🐱", "kind": "url", "value": "https://rustyisacat.github.io"},
+    {"id": "site", "name": "My website", "emoji": "🐱", "kind": "url", "value": "https://rustyisacat.neocities.org"},
     {"id": "rick", "name": "Totally normal link", "emoji": "🎵", "kind": "url", "value": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"},
 ]
 # An NDEF message has to fit in what readers will fetch; ~2 KB covers any sane URL or note.
