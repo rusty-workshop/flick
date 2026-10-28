@@ -111,6 +111,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/presets":
             if not self.authed():
                 return
+            log(f"sync from {self.client_address[0]}")
             with lock:
                 return self.js(200, {"presets": load()})
         if path == "/health":
