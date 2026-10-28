@@ -1,10 +1,13 @@
 package com.rusty.flick
 
+import android.content.ComponentName
 import android.content.Intent
 import android.nfc.NfcAdapter
+import android.nfc.cardemulation.CardEmulation
 import android.os.Bundle
 import android.provider.Settings
 import android.text.format.DateUtils
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
@@ -51,7 +54,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        nfcOn.value = NfcAdapter.getDefaultAdapter(this)?.isEnabled == true
+        val nfc = NfcAdapter.getDefaultAdapter(this)
+        nfcOn.value = nfc?.isEnabled == true
+        // Samsung Health registers the same NDEF tag AID, so the system won't route to us on its own.
+        // While Flick is on screen it's the preferred service and wins the conflict.
+        nfc?.let { runCatching { CardEmulation.getInstance(it).setPreferredService(this, ComponentName(this, BeamService::class.java)) } }
+    }
+
+    override fun onPause() {
+        NfcAdapter.getDefaultAdapter(this)?.let { runCatching { CardEmulation.getInstance(it).unsetPreferredService(this) } }
+        super.onPause()
     }
 }
 
@@ -78,6 +90,11 @@ fun Home() {
     }
 
     LaunchedEffect(Unit) { sync() }
+    val window = (ctx as? ComponentActivity)?.window
+    LaunchedEffect(state.activeId) {
+        if (state.activeId.isNotEmpty()) window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        else window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
 
     Scaffold(timeText = { TimeText() }, positionIndicator = { PositionIndicator(list) }) {
         ScalingLazyColumn(Modifier.fillMaxSize(), state = list) {
@@ -155,7 +172,7 @@ private fun Status(active: Preset?, beams: Int) {
             Text("⚡ Beaming", color = Accent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             Text(active.name, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                if (beams > 0) "Hold to a phone · $beams flicked" else "Hold the watch face to a phone",
+                if (beams > 0) "Keep Flick open · $beams flicked" else "Keep Flick open, hold face to a phone",
                 color = Muted, fontSize = 10.sp, textAlign = TextAlign.Center,
             )
         }
