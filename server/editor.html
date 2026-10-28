@@ -34,6 +34,10 @@
   .row .line2 { display: flex; gap: 6px; }
   .row .line2 input { flex: 1; font-size: 14px; }
   .row .line2 select { font-size: 14px; padding: 8px; }
+  .row .contact { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .row .contact input { font-size: 14px; }
+  .row .contact input:first-child { grid-column: 1 / -1; }
+  .row .kindnote { flex: 1; color: var(--muted); font-size: 13px; align-self: center; }
   .row .tools { display: flex; flex-direction: column; gap: 4px; }
   .row .tools button { padding: 4px 9px; background: transparent; color: var(--muted); font-size: 15px; }
   .row .tools button:hover { background: var(--line); color: var(--ink); }
@@ -72,7 +76,7 @@
     <div class="list" id="list"></div>
     <h2 class="notes-h">Notes from people you flicked <span id="victims"></span></h2>
     <div class="list" id="notes"><div class="empty">Loading…</div></div>
-    <p class="hint">Tip: links open on the phone you tap (YouTube links open the YouTube app). “Text” presets show up as a note instead.</p>
+    <p class="hint">Tip: links open on the phone you tap (YouTube links open the YouTube app). “Contact” presets make Android phones offer to save your details (iPhones ignore them). “Text” presets show up as a note instead. The first 7 presets show on the watch tile.</p>
   </div>
 </main>
 <div id="status" hidden></div>
@@ -197,8 +201,12 @@ function render() {
     const emoji = el("input", { className: "emoji", value: p.emoji || "", placeholder: "🔗", maxLength: 8, oninput: bind("emoji"), ariaLabel: "Emoji" });
     const name = el("input", { className: "name", value: p.name, placeholder: "Name", oninput: bind("name"), ariaLabel: "Name" });
     const value = el("input", { value: p.value, placeholder: p.kind === "text" ? "Text" : "https://…", oninput: bind("value"), ariaLabel: "Link or text" });
-    const kind = el("select", { onchange: (e) => { p.kind = e.target.value; render(); queueSave(); }, ariaLabel: "Type" },
-      [el("option", { value: "url", textContent: "Link" }), el("option", { value: "text", textContent: "Text" })]);
+    const kind = el("select", { onchange: (e) => {
+        p.kind = e.target.value;
+        if (p.kind === "contact" && !p.contact) { p.contact = { name: "", phone: "", email: "", url: "", org: "" }; if (!p.emoji || p.emoji === "🔗") p.emoji = "👤"; }
+        render(); queueSave();
+      }, ariaLabel: "Type" },
+      [el("option", { value: "url", textContent: "Link" }), el("option", { value: "text", textContent: "Text" }), el("option", { value: "contact", textContent: "Contact" })]);
     kind.value = p.kind;
     const move = (d) => () => { const j = i + d; if (j < 0 || j >= presets.length) return; [presets[i], presets[j]] = [presets[j], presets[i]]; render(); queueSave(); };
     const tools = el("div", { className: "tools" }, [
@@ -206,7 +214,16 @@ function render() {
       el("button", { className: "del", textContent: "✕", title: "Delete", onclick: () => { if (confirm(`Delete “${p.name}”?`)) { presets.splice(i, 1); render(); queueSave(); } } }),
       el("button", { textContent: "↓", title: "Move down", onclick: move(1) }),
     ]);
-    list.append(el("div", { className: "row" }, [emoji, el("div", { className: "fields" }, [name, el("div", { className: "line2" }, [value, kind])]), tools]));
+    const fields = [name, el("div", { className: "line2" }, p.kind === "contact" ? [el("span", { className: "kindnote", textContent: "Contact card: their phone offers to save it" }), kind] : [value, kind])];
+    if (p.kind === "contact") {
+      const c = p.contact || (p.contact = { name: "", phone: "", email: "", url: "", org: "" });
+      const cf = (field, ph, type = "text") => el("input", { type, value: c[field] || "", placeholder: ph, ariaLabel: ph,
+        oninput: (e) => { c[field] = e.target.value; queueSave(); } });
+      fields.push(el("div", { className: "contact" }, [
+        cf("name", "Full name"), cf("phone", "Phone", "tel"), cf("email", "Email", "email"), cf("url", "Website", "url"), cf("org", "Company / school (optional)"),
+      ]));
+    }
+    list.append(el("div", { className: "row" }, [emoji, el("div", { className: "fields" }, fields), tools]));
   });
 }
 
@@ -218,8 +235,11 @@ function queueSave() {
       const saved = (await api("PUT", { presets })).presets;
       // The server keeps order and skips empty rows: adopt its ids (and https:// fixes) for the rest,
       // so the watch's active preset id stays stable across saves.
-      const filled = presets.filter((p) => p.value.trim());
-      filled.forEach((p, i) => { if (saved[i]) { p.id = saved[i].id; p.value = saved[i].value; } });
+      const filled = presets.filter((p) => p.kind === "contact"
+        ? (p.contact && p.contact.name.trim() && (p.contact.phone.trim() || p.contact.email.trim() || p.contact.url.trim()))
+        : p.value.trim());
+      // (a contact row keeps its old link in the page, so switching back to Link doesn't lose it)
+      filled.forEach((p, i) => { if (saved[i]) { p.id = saved[i].id; if (p.kind !== "contact") p.value = saved[i].value; } });
       status("Saved ✓", "ok");
       setTimeout(() => status(""), 1500);
     } catch (e) { status("Not saved: " + e.message, "bad"); }

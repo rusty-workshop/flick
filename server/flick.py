@@ -41,6 +41,7 @@ SEED = [
 ]
 # An NDEF message has to fit in what readers will fetch; ~2 KB covers any sane URL or note.
 MAX_VALUE = 2000
+CONTACT_FIELDS = ("name", "phone", "email", "url", "org")
 
 
 def log(*a):
@@ -83,11 +84,18 @@ def clean(raw) -> list:
     for p in raw:
         if not isinstance(p, dict):
             raise ValueError("bad preset")
-        kind = "text" if p.get("kind") == "text" else "url"
+        kind = p.get("kind") if p.get("kind") in ("text", "contact") else "url"
         name = str(p.get("name", "")).strip()[:60]
         value = str(p.get("value", "")).strip()
         emoji = str(p.get("emoji", "")).strip()[:8]
         pid = str(p.get("id", "")).strip()
+        contact = None
+        if kind == "contact":
+            raw_c = p.get("contact") if isinstance(p.get("contact"), dict) else {}
+            contact = {k: str(raw_c.get(k, "")).strip()[:200] for k in CONTACT_FIELDS}
+            if not contact["name"] or not any(contact[k] for k in ("phone", "email", "url")):
+                continue  # needs a name plus a way to reach you
+            value = contact["name"]
         if not value:
             continue  # half-typed rows in the editor are just skipped
         if len(value) > MAX_VALUE:
@@ -97,7 +105,10 @@ def clean(raw) -> list:
         if not re.fullmatch(r"[A-Za-z0-9_-]{1,40}", pid) or pid in seen:
             pid = secrets.token_hex(4)
         seen.add(pid)
-        out.append({"id": pid, "name": name or value[:40], "emoji": emoji, "kind": kind, "value": value})
+        item = {"id": pid, "name": name or value[:40], "emoji": emoji, "kind": kind, "value": value}
+        if contact:
+            item["contact"] = contact
+        out.append(item)
     return out
 
 

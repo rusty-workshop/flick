@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Flick</string>
     <string name="hce_description">Flick: beams your chosen link as an NFC tag</string>
+    <string name="tile_label">Flick presets</string>
 </resources>

@@ -125,7 +125,7 @@ fun Home() {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         Store.select(ctx, if (on) "" else p.id)
                     },
-                    icon = { Text(p.emoji.ifBlank { if (p.kind == "text") "💬" else "🔗" }, fontSize = 18.sp) },
+                    icon = { Text(p.icon, fontSize = 18.sp) },
                     label = { Text(p.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     secondaryLabel = { Text(pretty(p), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = if (on) ChipDefaults.chipColors(backgroundColor = Accent, contentColor = Color.Black, secondaryContentColor = Color.Black.copy(alpha = 0.7f), iconColor = Color.Black)
@@ -172,12 +172,15 @@ private fun Status(active: Preset?, beams: Int) {
             Text("⚡ Beaming", color = Accent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             Text(active.name, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                if (beams > 0) "Keep Flick open · $beams flicked" else "Keep Flick open, hold face to a phone",
+                if (beams > 0) "Hold to a phone · $beams flicked" else "Hold the watch face to a phone",
                 color = Muted, fontSize = 10.sp, textAlign = TextAlign.Center,
             )
         }
     }
 }
 
-private fun pretty(p: Preset) =
-    if (p.kind == "text") p.value else p.value.removePrefix("https://").removePrefix("http://").removePrefix("www.")
+private fun pretty(p: Preset) = when (p.kind) {
+    "text" -> p.value
+    "contact" -> "Contact card" + (p.contact?.name?.takeIf { it.isNotBlank() }?.let { ": $it" } ?: "")
+    else -> p.value.removePrefix("https://").removePrefix("http://").removePrefix("www.")
+}

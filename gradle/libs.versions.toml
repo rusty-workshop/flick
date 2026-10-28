@@ -6,6 +6,9 @@ activityCompose = "1.8.0"
 wearCompose = "1.5.6"
 serialization = "1.7.3"
 coroutines = "1.9.0"
+tiles = "1.6.2"
+protolayout = "1.4.2"
+guava = "33.4.0-android"
 
 [libraries]
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
@@ -16,6 +19,10 @@ wear-compose-foundation = { group = "androidx.wear.compose", name = "compose-fou
 wear-compose-navigation = { group = "androidx.wear.compose", name = "compose-navigation", version.ref = "wearCompose" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+wear-tiles = { group = "androidx.wear.tiles", name = "tiles", version.ref = "tiles" }
+wear-protolayout = { group = "androidx.wear.protolayout", name = "protolayout", version.ref = "protolayout" }
+kotlinx-coroutines-guava = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-guava", version.ref = "coroutines" }
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

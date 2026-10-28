@@ -25,8 +25,8 @@ android {
         applicationId = "com.rusty.flick"
         minSdk = 30 // Wear OS 3+
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         buildConfigField("String", "SERVER_LAN", prop("server.lan"))
         buildConfigField("String", "SERVER_FUNNEL", prop("server.funnel"))
@@ -62,4 +62,8 @@ dependencies {
     implementation(libs.wear.compose.foundation)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.guava)
+    implementation(libs.guava)
+    implementation(libs.wear.tiles)
+    implementation(libs.wear.protolayout)
 }

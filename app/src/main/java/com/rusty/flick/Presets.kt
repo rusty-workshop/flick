@@ -19,18 +19,50 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 @Serializable
+data class Contact(
+    val name: String = "",
+    val phone: String = "",
+    val email: String = "",
+    val url: String = "",
+    val org: String = "",
+) {
+    /** vCard 3.0: Android offers "add contact" when it reads one. */
+    fun vcard(): String {
+        fun esc(v: String) = v.replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;").replace("\n", "\\n")
+        return buildList {
+            add("BEGIN:VCARD")
+            add("VERSION:3.0")
+            add("N:;${esc(name)};;;")
+            add("FN:${esc(name)}")
+            if (org.isNotBlank()) add("ORG:${esc(org)}")
+            if (phone.isNotBlank()) add("TEL;TYPE=CELL:${esc(phone)}")
+            if (email.isNotBlank()) add("EMAIL:${esc(email)}")
+            if (url.isNotBlank()) add("URL:${esc(url)}")
+            add("END:VCARD")
+        }.joinToString("\r\n", postfix = "\r\n")
+    }
+}
+
+@Serializable
 data class Preset(
     val id: String,
     val name: String,
     val value: String,
     val emoji: String = "",
-    /** "url" (opens on the phone) or "text" (shows as a plain text tag). */
+    /** "url" (opens on the phone), "text" (a plain text tag) or "contact" (a vCard). */
     val kind: String = "url",
+    val contact: Contact? = null,
 ) {
     val uri: String get() = if (kind == "url" && !value.contains(':')) "https://$value" else value
 
+    val icon: String get() = emoji.ifBlank { when (kind) { "text" -> "💬"; "contact" -> "👤"; else -> "🔗" } }
+
     fun ndef(): NdefMessage = NdefMessage(
-        if (kind == "text") NdefRecord.createTextRecord("en", value) else NdefRecord.createUri(uri)
+        when {
+            kind == "contact" && contact != null -> NdefRecord.createMime("text/vcard", contact.vcard().toByteArray())
+            kind == "text" -> NdefRecord.createTextRecord("en", value)
+            else -> NdefRecord.createUri(uri)
+        }
     )
 }
 
@@ -64,6 +96,7 @@ object Store {
     fun select(ctx: Context, id: String) {
         prefs(ctx).edit().putString("active", id).apply()
         _state.value = _state.value.copy(activeId = id)
+        PresetTileService.refresh(ctx)
     }
 
     fun countBeam(ctx: Context) {
@@ -81,6 +114,7 @@ object Store {
             val active = _state.value.activeId.takeIf { id -> list.any { it.id == id } } ?: ""
             prefs(ctx).edit().putString("presets", raw).putString("active", active).putLong("lastSync", now).apply()
             _state.value = _state.value.copy(presets = list, activeId = active, lastSync = now, syncError = null)
+            PresetTileService.refresh(ctx)
         }.onFailure {
             _state.value = _state.value.copy(syncError = it.message ?: "Sync failed")
         }
