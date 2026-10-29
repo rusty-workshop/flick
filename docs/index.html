@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flick</title>
+<meta name="description" content="Flick turns a Wear OS watch into a programmable NFC tag. Pick a link, tap a phone, done.">
+<meta property="og:title" content="Flick">
+<meta property="og:description" content="Your Wear OS watch is an NFC tag now. Pick a link, tap a phone, done.">
+<meta property="og:image" content="https://flick.rusty.is-a.dev/assets/banner.svg">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23130f26'/><path d='M12 9q6 7 0 14M17 6q9 10 0 20' stroke='%23c6ff3d' stroke-width='3' fill='none' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Space+Grotesk:wght@400;500;700&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0d0b1e; --ink2:#17122e; --ink3:#221b3d;
+    --hot:#ff4f81; --lime:#c6ff3d; --lav:#b7aee0; --paper:#f4f1ff; --dim:rgba(244,241,255,.62);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0; background:var(--ink); color:var(--paper); font-family:'Space Grotesk',system-ui,sans-serif; -webkit-font-smoothing:antialiased; overflow-x:hidden;}
+  a{color:inherit;}
+  .wrap{max-width:1160px; margin:0 auto; padding:0 clamp(16px,4vw,40px);}
+  body::before{
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.5;
+    background:
+      radial-gradient(800px 500px at 85% -10%, rgba(255,79,129,.18), transparent 60%),
+      radial-gradient(700px 500px at -10% 60%, rgba(198,255,61,.08), transparent 60%);
+  }
+  main, header, footer{position:relative; z-index:1;}
+
+  nav{display:flex; justify-content:space-between; align-items:center; padding:22px 0;}
+  .logo{font-family:'Unbounded'; font-weight:800; font-size:1.2rem; text-decoration:none; display:flex; align-items:center; gap:10px;}
+  .logo i{width:26px; height:26px; border-radius:50%; background:var(--lime); position:relative; display:inline-block;}
+  .logo i::after{content:''; position:absolute; inset:-6px; border-radius:50%; border:2px solid var(--hot); opacity:.7; animation: ping 1.8s ease-out infinite;}
+  @keyframes ping{ from{transform:scale(.6); opacity:.9;} to{transform:scale(1.5); opacity:0;} }
+  nav .links{display:flex; gap:8px;}
+  nav .links a{font-size:.88rem; text-decoration:none; padding:8px 14px; border-radius:100px; border:1px solid rgba(255,255,255,.12); transition:background .2s, transform .2s cubic-bezier(.34,1.56,.64,1);}
+  nav .links a:hover{background:rgba(255,255,255,.08); transform:translateY(-2px) rotate(-2deg);}
+
+  /* ---- hero ---- */
+  .hero{display:grid; grid-template-columns:1.05fr 1fr; gap:40px; align-items:center; min-height:min(88vh,820px); padding-block:20px 60px;}
+  .kicker{font-family:'Space Mono'; font-size:.8rem; color:var(--lime); letter-spacing:.06em;}
+  h1{font-family:'Unbounded'; font-weight:800; font-size:clamp(2.6rem,6.4vw,5.6rem); line-height:.95; letter-spacing:-.04em; margin:16px 0 22px;}
+  h1 .hl{color:var(--ink); background:var(--lime); padding:0 .12em; border-radius:.12em; display:inline-block; transform:rotate(-2deg);}
+  h1 .hot{color:var(--hot);}
+  .lede{font-size:1.15rem; line-height:1.6; color:var(--dim); max-width:46ch; margin:0 0 30px;}
+  .cta{display:flex; gap:12px; flex-wrap:wrap;}
+  .btn{display:inline-flex; align-items:center; gap:10px; padding:15px 24px; border-radius:100px; font-weight:700; text-decoration:none; border:none; cursor:pointer; font:inherit; font-weight:700; transition:transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s;}
+  .btn:hover{transform:translateY(-3px) rotate(-1.5deg);}
+  .btn.p{background:var(--hot); color:#fff; box-shadow:0 10px 30px rgba(255,79,129,.35);}
+  .btn.s{background:transparent; color:var(--paper); border:1.5px solid rgba(255,255,255,.25);}
+
+  /* ---- demo ---- */
+  .demo{position:relative; height:520px; border-radius:36px; background:linear-gradient(160deg,var(--ink2),var(--ink3)); border:1px solid rgba(255,255,255,.08); overflow:hidden; touch-action:none;}
+  .demo .hint{position:absolute; left:0; right:0; bottom:18px; text-align:center; font-family:'Space Mono'; font-size:.75rem; color:var(--dim);}
+  .watch{position:absolute; left:16%; top:50%; transform:translate(-50%,-50%); width:180px; height:330px;}
+  .watch .strap{position:absolute; left:50%; top:0; bottom:0; width:96px; transform:translateX(-50%); background:#2c2450; border-radius:24px;}
+  .watch .case{position:absolute; left:50%; top:50%; width:180px; height:180px; transform:translate(-50%,-50%); border-radius:50%; background:#3a3160; display:grid; place-items:center; box-shadow:0 20px 40px rgba(0,0,0,.4);}
+  .watch .face{width:160px; height:160px; border-radius:50%; background:radial-gradient(circle at 50% 35%,#2a2150,#0a0818); display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; position:relative;}
+  .face .ring{position:absolute; inset:4px; border-radius:50%; border:3px solid transparent; border-top-color:var(--hot); border-right-color:var(--hot); animation: spin 3s linear infinite;}
+  .demo.beaming .face .ring{border-color:var(--lime); animation-duration:.7s;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .face .st{font-family:'Space Mono'; font-size:.66rem; color:var(--lime);}
+  .face .nm{font-family:'Unbounded'; font-size:.82rem; font-weight:600; margin:6px 10px 0; line-height:1.2;}
+  .face .em{font-size:1.6rem;}
+  .waves{position:absolute; left:16%; top:50%; width:10px; height:10px;}
+  .waves span{position:absolute; left:50%; top:50%; width:200px; height:200px; margin:-100px 0 0 -100px; border-radius:50%; border:3px solid var(--hot); opacity:0;}
+  .demo.armed .waves span{animation: wave 2.4s ease-out infinite;}
+  .demo.armed .waves span:nth-child(2){animation-delay:.8s;} .demo.armed .waves span:nth-child(3){animation-delay:1.6s;}
+  .demo.beaming .waves span{border-color:var(--lime); animation-duration:.9s;}
+  @keyframes wave{ from{transform:scale(.6); opacity:.9;} to{transform:scale(2.6); opacity:0;} }
+  .phone{position:absolute; left:72%; top:50%; width:150px; height:290px; transform:translate(-50%,-50%) rotate(8deg); background:var(--paper); border-radius:28px; padding:9px; cursor:grab; box-shadow:0 30px 60px rgba(0,0,0,.5); transition: transform .3s cubic-bezier(.34,1.56,.64,1);}
+  .phone.drag{cursor:grabbing; transition:none;}
+  .phone .scr{height:100%; border-radius:20px; background:#130f26; position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:center; padding:12px;}
+  .phone .clock{position:absolute; top:28px; left:0; right:0; text-align:center; font-family:'Unbounded'; font-size:1.8rem; font-weight:600; opacity:.9;}
+  .phone .grab{position:absolute; top:6px; left:50%; width:44px; height:5px; margin-left:-22px; border-radius:4px; background:rgba(255,255,255,.25);}
+  .card{background:#fff; color:var(--ink); border-radius:14px; padding:12px; transform:translateY(30px) scale(.9); opacity:0; transition: all .45s cubic-bezier(.34,1.56,.64,1);}
+  .card.show{transform:none; opacity:1;}
+  .card small{display:block; font-family:'Space Mono'; font-size:.6rem; color:var(--hot); font-weight:700; letter-spacing:.06em;}
+  .card b{display:block; font-size:.86rem; margin:4px 0 2px;}
+  .card span{font-size:.7rem; color:#6b6390; word-break:break-all;}
+  .presets{position:absolute; left:18px; right:18px; top:18px; display:flex; gap:8px; flex-wrap:wrap; z-index:3;}
+  .presets button{font:inherit; font-size:.78rem; padding:8px 12px; border-radius:100px; background:rgba(255,255,255,.06); color:var(--paper); border:1px solid rgba(255,255,255,.14); cursor:pointer; transition:all .2s;}
+  .presets button.on{background:var(--lime); color:var(--ink); border-color:var(--lime); font-weight:700;}
+  .tapbtn{display:none;}
+
+  /* ---- sections ---- */
+  section{padding-block:90px;}
+  .sh{font-family:'Unbounded'; font-weight:800; font-size:clamp(2rem,4.6vw,3.6rem); letter-spacing:-.03em; line-height:1; margin:0 0 16px;}
+  .sp{color:var(--dim); font-size:1.08rem; max-width:56ch; line-height:1.6; margin:0 0 40px;}
+  .marquee{overflow:hidden; border-block:1px solid rgba(255,255,255,.1); padding:18px 0; white-space:nowrap; font-family:'Unbounded'; font-weight:600; font-size:1.4rem;}
+  .marquee div{display:inline-block; animation: mq 28s linear infinite;}
+  .marquee em{font-style:normal; color:var(--hot); margin:0 22px;}
+  @keyframes mq{to{transform:translateX(-50%);}}
+
+  .feat{display:grid; grid-template-columns:repeat(4,1fr); gap:14px;}
+  .f{background:var(--ink2); border:1px solid rgba(255,255,255,.08); border-radius:24px; padding:24px; transition: transform .25s cubic-bezier(.34,1.56,.64,1), border-color .2s;}
+  .f:hover{transform:translateY(-6px) rotate(-1deg); border-color:var(--hot);}
+  .f .ic{font-size:1.8rem;} .f h3{font-family:'Unbounded'; font-weight:600; font-size:1rem; margin:14px 0 8px;} .f p{margin:0; color:var(--dim); font-size:.92rem; line-height:1.55;}
+  .f.big{grid-column:span 2; background:var(--hot); color:#fff; border:none;} .f.big p{color:rgba(255,255,255,.85);}
+  .f.lime{background:var(--lime); color:var(--ink); border:none;} .f.lime p{color:rgba(13,11,30,.7);}
+
+  .apdu{display:grid; grid-template-columns:1fr 1fr; gap:40px; align-items:start;}
+  .log{background:#07060f; border:1px solid rgba(255,255,255,.1); border-radius:22px; padding:22px; font-family:'Space Mono'; font-size:.82rem; min-height:360px;}
+  .log .ln{display:flex; gap:10px; margin-bottom:12px; opacity:0; transform:translateY(8px); transition:all .4s ease;}
+  .log .ln.on{opacity:1; transform:none;}
+  .log .who{flex:0 0 64px; font-weight:700;} .log .ph{color:var(--lav);} .log .wa{color:var(--lime);}
+  .log .msg span{display:block; color:var(--dim); font-size:.74rem; margin-top:2px;}
+  .steps{display:grid; gap:14px;}
+  .step{display:flex; gap:16px; align-items:flex-start;}
+  .step b{flex:0 0 40px; height:40px; border-radius:12px; display:grid; place-items:center; background:var(--ink3); font-family:'Unbounded'; color:var(--lime);}
+  .step p{margin:0; line-height:1.55; color:var(--dim);} .step strong{color:var(--paper);}
+
+  table{width:100%; border-collapse:collapse; font-size:.98rem;}
+  td{padding:16px 10px; border-bottom:1px solid rgba(255,255,255,.08);} td:first-child{font-weight:700;} td:last-child{color:var(--dim);}
+  pre{background:#07060f; border:1px solid rgba(255,255,255,.1); border-radius:18px; padding:20px; overflow:auto; font-family:'Space Mono'; font-size:.8rem; line-height:1.7; color:#d9d2ff;}
+  pre .c{color:#6b6390;}
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:20px;}
+  .two h3{font-family:'Unbounded'; font-weight:600; font-size:1.05rem; margin:0 0 10px;}
+
+  footer{padding-block:50px 60px; border-top:1px solid rgba(255,255,255,.1); display:flex; justify-content:space-between; flex-wrap:wrap; gap:14px; color:var(--dim); font-size:.9rem;}
+  footer a{color:var(--lime); text-decoration:none;}
+
+  .reveal{opacity:0; transform:translateY(24px); transition: all .7s cubic-bezier(.2,.8,.2,1);}
+  .reveal.in{opacity:1; transform:none;}
+
+  @media (max-width:900px){
+    .hero, .apdu, .two{grid-template-columns:1fr;}
+    .feat{grid-template-columns:1fr 1fr;} .f.big{grid-column:span 2;}
+    .demo{height:460px;}
+    .watch{left:28%; transform:translate(-50%,-50%) scale(.82);} .waves{left:28%;}
+    .phone{left:74%; width:128px; height:250px;}
+    .tapbtn{display:block; position:absolute; bottom:44px; left:50%; transform:translateX(-50%); z-index:4;}
+    .demo .hint{display:none;}
+  }
+  @media (max-width:520px){ .feat{grid-template-columns:1fr;} .f.big{grid-column:auto;} nav .links a:not(:last-child){display:none;} }
+  @media (prefers-reduced-motion:reduce){ *{animation:none !important; transition:none !important;} .reveal{opacity:1; transform:none;} }
+</style>
+</head>
+<body>
+<header class="wrap">
+  <nav>
+    <a class="logo" href="#"><i></i>Flick</a>
+    <div class="links">
+      <a href="#how">How it works</a>
+      <a href="#setup">Setup</a>
+      <a href="https://github.com/rusty-workshop/flick">GitHub ↗</a>
+    </div>
+  </nav>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <div>
+      <div class="kicker">// wear os · nfc · host card emulation</div>
+      <h1>Your watch is an <span class="hl">NFC tag</span> <span class="hot">now.</span></h1>
+      <p class="lede">Pick a link on your wrist, hold the watch to someone's phone, and their phone opens it. Your website, a video, your contact card, or a "totally normal link". No app on their end. No pairing. No account.</p>
+      <div class="cta">
+        <a class="btn p" href="https://github.com/rusty-workshop/flick">Get it on GitHub ↗</a>
+        <a class="btn s" href="#how">How does that work?</a>
+      </div>
+    </div>
+
+    <div class="demo armed" id="flickDemo">
+      <div class="presets" id="flickPresets"></div>
+      <div class="waves"><span></span><span></span><span></span></div>
+      <div class="watch">
+        <div class="strap"></div>
+        <div class="case"><div class="face"><div class="ring"></div><div class="em" id="faceEmoji">🌐</div><div class="nm" id="faceName">My website</div><div class="st" id="faceState">● armed</div></div></div>
+      </div>
+      <div class="phone" id="flickPhone">
+        <div class="scr"><div class="grab"></div><div class="clock" id="phoneClock">9:41</div>
+          <div class="card" id="phoneCard"><small>NFC TAG</small><b id="cardTitle">Open link?</b><span id="cardBody">rusty.is-a.dev</span></div>
+        </div>
+      </div>
+      <button class="btn p tapbtn" id="tapBtn" type="button">Tap to beam</button>
+      <div class="hint">drag the phone onto the watch</div>
+    </div>
+  </div>
+
+  <div class="marquee" aria-hidden="true"><div>
+    tap to share <em>✦</em> your website <em>✦</em> a youtube link <em>✦</em> your contact card <em>✦</em> a rickroll, probably <em>✦</em> works offline <em>✦</em> wallet-safe <em>✦</em>
+    tap to share <em>✦</em> your website <em>✦</em> a youtube link <em>✦</em> your contact card <em>✦</em> a rickroll, probably <em>✦</em> works offline <em>✦</em> wallet-safe <em>✦</em>
+  </div></div>
+
+  <section class="wrap">
+    <h2 class="sh reveal">Small app.<br>Unreasonably fun.</h2>
+    <p class="sp reveal">Everything a tag can hold, on a watch you already wear, with presets you edit from a real keyboard.</p>
+    <div class="feat">
+      <div class="f big reveal"><div class="ic">🔗</div><h3>Any link, instantly</h3><p>Android opens it the moment it reads the tag, YouTube links straight into the YouTube app. iPhones show a banner to tap.</p></div>
+      <div class="f lime reveal"><div class="ic">👤</div><h3>Contact cards</h3><p>Beam a vCard and Android offers to save you.</p></div>
+      <div class="f reveal"><div class="ic">🧩</div><h3>Quick tile</h3><p>Seven presets, one swipe from the watch face.</p></div>
+      <div class="f reveal"><div class="ic">📝</div><h3>Browser editor</h3><p>Paste, rename, reorder. It autosaves and the watch syncs.</p></div>
+      <div class="f reveal"><div class="ic">✈️</div><h3>Offline</h3><p>Presets are cached, so beaming never needs a network.</p></div>
+      <div class="f reveal"><div class="ic">📳</div><h3>Buzz buzz</h3><p>Two taps on your wrist when the phone has read the whole tag.</p></div>
+      <div class="f reveal"><div class="ic">🛡️</div><h3>Wallet-safe</h3><p>An "other" category service, so tap-to-pay never notices it.</p></div>
+    </div>
+  </section>
+
+  <section class="wrap" id="how">
+    <div class="apdu">
+      <div>
+        <h2 class="sh reveal">How a watch<br>becomes a tag.</h2>
+        <p class="sp reveal">Android's Host Card Emulation lets an app answer the exact commands a real NFC Forum Type 4 tag would. Flick implements just enough of that tag, and nothing else.</p>
+        <div class="steps">
+          <div class="step reveal"><b>1</b><p><strong>The phone asks for the NDEF app.</strong> Flick registers the standard NDEF AID, so any phone that reads tags will knock.</p></div>
+          <div class="step reveal"><b>2</b><p><strong>The watch hands over a capability container,</strong> then one NDEF file built from whatever preset is armed, snapshotted so a switch can't tear a message.</p></div>
+          <div class="step reveal"><b>3</b><p><strong>Nothing armed? It says "file not found".</strong> The watch simply isn't a tag until you want it to be.</p></div>
+        </div>
+      </div>
+      <div class="log reveal" id="apduLog">
+        <div class="ln"><span class="who ph">phone</span><span class="msg">00 A4 04 00 07 D2760000850101<span>select the NDEF application</span></span></div>
+        <div class="ln"><span class="who wa">watch</span><span class="msg">90 00<span>yep, I'm a tag</span></span></div>
+        <div class="ln"><span class="who ph">phone</span><span class="msg">00 A4 00 0C 02 E103<span>select the capability container</span></span></div>
+        <div class="ln"><span class="who wa">watch</span><span class="msg">00 0F 20 00 3B 00 34 04 06 E104 ...<span>here's how to read me</span></span></div>
+        <div class="ln"><span class="who ph">phone</span><span class="msg">00 B0 00 00 2A<span>read the NDEF file</span></span></div>
+        <div class="ln"><span class="who wa">watch</span><span class="msg">D1 01 26 55 04 72 75 73 74 79 ...<span>URI record: https://rusty.is-a.dev</span></span></div>
+        <div class="ln"><span class="who wa">watch</span><span class="msg">*bzzt bzzt*<span>read complete, buzzing your wrist</span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <h2 class="sh reveal">What their phone does.</h2>
+    <table class="reveal">
+      <tr><td>Android, unlocked</td><td>Opens the link right away</td></tr>
+      <tr><td>iPhone XS or newer</td><td>Shows a banner; tap it</td></tr>
+      <tr><td>Contact card, Android</td><td>"Add contact" sheet</td></tr>
+      <tr><td>Contact card, iPhone</td><td>Ignored, iOS doesn't open vCards from tags</td></tr>
+      <tr><td>Where to hold it</td><td>Watch face flat on the phone's NFC spot: middle of the back on Android, top edge on iPhone</td></tr>
+    </table>
+  </section>
+
+  <section class="wrap" id="setup">
+    <h2 class="sh reveal">Set it up.</h2>
+    <p class="sp reveal">Two pieces: a tiny editor server on any always-on Linux box, and the watch app.</p>
+    <div class="two">
+      <div class="reveal"><h3>The editor</h3>
+<pre><span class="c"># server/flick.env: FLICK_KEY=..., PORT=8480</span>
+scp server/flick.py server/editor.html \
+    server/flick.env box:~/flick/
+scp server/systemd/flick.service \
+    box:~/.config/systemd/user/
+ssh box 'systemctl --user enable --now flick'
+<span class="c"># then open http://box:8480/#k=FLICK_KEY once</span></pre></div>
+      <div class="reveal"><h3>The watch</h3>
+<pre>cp flick.properties.example flick.properties
+<span class="c"># set server.key = FLICK_KEY</span>
+./gradlew :app:assembleRelease
+adb install -r app/build/outputs/apk/release/app-release.apk
+adb shell cmd package compile -m speed \
+    -f com.rusty.flick</pre></div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <span>Flick is AGPL-3.0-or-later. Made by <a href="https://rusty.is-a.dev">Rusty</a>.</span>
+  <span><a href="https://github.com/rusty-workshop/flick">github.com/rusty-workshop/flick ↗</a></span>
+</footer>
+
+<script>
+(function(){
+  var PRESETS = [
+    {e:'🌐', n:'My website', t:'Open link?', b:'rusty.is-a.dev'},
+    {e:'🎵', n:'Totally normal link', t:'Open link?', b:'youtube.com/watch?v=dQw4w9WgXcQ'},
+    {e:'👤', n:'Contact card', t:'Add contact?', b:'Rusty · rusty.is-a.dev'},
+    {e:'💬', n:'Hello', t:'Text tag', b:'hi, you got flicked'}
+  ];
+  var demo = document.getElementById('flickDemo'), phone = document.getElementById('flickPhone'), card = document.getElementById('phoneCard');
+  var bar = document.getElementById('flickPresets'), active = 0, beamed = false;
+  PRESETS.forEach(function(p, i){
+    var b = document.createElement('button'); b.type = 'button'; b.textContent = p.e + ' ' + p.n;
+    b.addEventListener('click', function(){ select(i); });
+    bar.appendChild(b);
+  });
+  function select(i){
+    active = i; var p = PRESETS[i];
+    [].forEach.call(bar.children, function(b, k){ b.classList.toggle('on', k === i); });
+    document.getElementById('faceEmoji').textContent = p.e;
+    document.getElementById('faceName').textContent = p.n;
+    reset();
+  }
+  function reset(){ beamed = false; card.classList.remove('show'); demo.classList.remove('beaming'); document.getElementById('faceState').textContent = '● armed'; }
+  function beam(){
+    if (beamed) return; beamed = true;
+    var p = PRESETS[active];
+    document.getElementById('cardTitle').textContent = p.t;
+    document.getElementById('cardBody').textContent = p.b;
+    demo.classList.add('beaming');
+    document.getElementById('faceState').textContent = '✓ read';
+    setTimeout(function(){ card.classList.add('show'); }, 250);
+    if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
+  }
+  select(0);
+
+  var d = new Date(); document.getElementById('phoneClock').textContent = (d.getHours() % 12 || 12) + ':' + ('0' + d.getMinutes()).slice(-2);
+
+  // drag the phone onto the watch
+  var dragging = false, ox = 0, oy = 0, base = null;
+  phone.addEventListener('pointerdown', function(e){
+    dragging = true; phone.classList.add('drag'); phone.setPointerCapture(e.pointerId);
+    ox = e.clientX; oy = e.clientY;
+  });
+  phone.addEventListener('pointermove', function(e){
+    if (!dragging) return;
+    var dx = e.clientX - ox, dy = e.clientY - oy;
+    phone.style.transform = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px)) rotate(' + (8 - Math.min(8, Math.abs(dx) / 20)) + 'deg)';
+    var w = demo.querySelector('.case').getBoundingClientRect(), r = phone.getBoundingClientRect();
+    var dist = Math.hypot((r.left + r.width/2) - (w.left + w.width/2), (r.top + r.height/2) - (w.top + w.height/2));
+    if (dist < 120) beam();
+  });
+  function drop(){
+    if (!dragging) return; dragging = false; phone.classList.remove('drag');
+    phone.style.transform = '';
+    if (beamed) setTimeout(reset, 2600);
+  }
+  phone.addEventListener('pointerup', drop); phone.addEventListener('pointercancel', drop);
+  document.getElementById('tapBtn').addEventListener('click', function(){ beam(); setTimeout(reset, 2600); });
+
+  // APDU log plays when scrolled into view
+  var log = document.getElementById('apduLog');
+  var io = new IntersectionObserver(function(es){
+    es.forEach(function(en){
+      if (!en.isIntersecting) return;
+      en.target.classList.add('in');
+      if (en.target === log){
+        [].forEach.call(log.children, function(ln, i){ setTimeout(function(){ ln.classList.add('on'); }, 300 + i * 420); });
+      }
+      io.unobserve(en.target);
+    });
+  }, {threshold:.2});
+  document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+})();
+</script>
+</body>
+</html>

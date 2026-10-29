@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" width="1200" height="420" font-family="'Space Grotesk','Segoe UI',Helvetica,Arial,sans-serif">
+  <defs>
+    <linearGradient id="fbBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d0b1e"/>
+      <stop offset="1" stop-color="#1b1036"/>
+    </linearGradient>
+    <linearGradient id="fbBeam" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff4f81"/>
+      <stop offset="1" stop-color="#c6ff3d"/>
+    </linearGradient>
+    <radialGradient id="fbFace" cx=".5" cy=".4" r=".7">
+      <stop offset="0" stop-color="#2a2150"/>
+      <stop offset="1" stop-color="#0a0818"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="420" rx="28" fill="url(#fbBg)"/>
+  <g opacity=".07" stroke="#fff">
+    <path d="M0 105H1200M0 210H1200M0 315H1200M300 0V420M600 0V420M900 0V420"/>
+  </g>
+
+  <!-- watch -->
+  <g transform="translate(250 210)">
+    <rect x="-46" y="-150" width="92" height="300" rx="20" fill="#221b3d"/>
+    <circle r="96" fill="#3a3160"/>
+    <circle r="86" fill="url(#fbFace)"/>
+    <circle r="86" fill="none" stroke="#ff4f81" stroke-width="4" stroke-dasharray="380 160" stroke-linecap="round">
+      <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="6s" repeatCount="indefinite"/>
+    </circle>
+    <text y="-8" text-anchor="middle" font-size="34" font-weight="700" fill="#fff">Flick</text>
+    <text y="22" text-anchor="middle" font-size="15" fill="#c6ff3d">● beaming</text>
+    <text y="46" text-anchor="middle" font-size="13" fill="#b7aee0">My website</text>
+  </g>
+
+  <!-- waves -->
+  <g fill="none" stroke="url(#fbBeam)" stroke-width="5" stroke-linecap="round">
+    <path d="M372 160 Q400 210 372 260" opacity="0">
+      <animate attributeName="opacity" values="0;1;0" dur="1.8s" begin="0s" repeatCount="indefinite"/>
+    </path>
+    <path d="M402 130 Q445 210 402 290" opacity="0">
+      <animate attributeName="opacity" values="0;1;0" dur="1.8s" begin=".3s" repeatCount="indefinite"/>
+    </path>
+    <path d="M432 100 Q490 210 432 320" opacity="0">
+      <animate attributeName="opacity" values="0;1;0" dur="1.8s" begin=".6s" repeatCount="indefinite"/>
+    </path>
+  </g>
+
+  <!-- phone -->
+  <g transform="translate(560 70)">
+    <rect width="160" height="290" rx="26" fill="#f4f1ff"/>
+    <rect x="10" y="12" width="140" height="266" rx="18" fill="#130f26"/>
+    <rect x="22" y="104" width="116" height="90" rx="14" fill="#fff">
+      <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;.35;.45;.9;1" dur="3.6s" repeatCount="indefinite"/>
+    </rect>
+    <g font-size="12">
+      <text x="34" y="132" fill="#ff4f81" font-weight="700">
+        NFC TAG
+        <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;.35;.45;.9;1" dur="3.6s" repeatCount="indefinite"/>
+      </text>
+      <text x="34" y="154" fill="#130f26" font-weight="700" font-size="14">
+        Open link?
+        <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;.35;.45;.9;1" dur="3.6s" repeatCount="indefinite"/>
+      </text>
+      <text x="34" y="176" fill="#6b6390">
+        rusty.is-a.dev
+        <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;.35;.45;.9;1" dur="3.6s" repeatCount="indefinite"/>
+      </text>
+    </g>
+  </g>
+
+  <!-- copy -->
+  <g transform="translate(790 150)">
+    <text font-size="64" font-weight="700" fill="#fff" letter-spacing="-2">Flick</text>
+    <text y="44" font-size="22" fill="#d9d2ff">Your Wear OS watch is an NFC tag now.</text>
+    <text y="76" font-size="22" fill="#d9d2ff">Pick a link. Tap a phone. Done.</text>
+    <g transform="translate(0 112)" font-size="14" font-weight="700">
+      <rect width="98" height="30" rx="15" fill="#ff4f81"/><text x="49" y="20" text-anchor="middle" fill="#fff">Wear OS</text>
+      <rect x="108" width="138" height="30" rx="15" fill="#c6ff3d"/><text x="177" y="20" text-anchor="middle" fill="#130f26">Host Card Emu</text>
+      <rect x="256" width="86" height="30" rx="15" fill="none" stroke="#b7aee0"/><text x="299" y="20" text-anchor="middle" fill="#d9d2ff">AGPL</text>
+    </g>
+  </g>
+</svg>
